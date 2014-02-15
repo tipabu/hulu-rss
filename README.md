@@ -2,6 +2,7 @@ Hulu-RSS
 ========
 
 Simple Node.js proxy to create RSS feeds for TV shows on Hulu.
+
 Hulu recently stopped making feeds available at http://www.hulu.com/feed.
 Sadly, this spoiled one of my favorite HTPC features: using Firefox's [Live Bookmarks](http://kb.mozillazine.org/Live_Bookmarks_-_Firefox) feature to watch for new episodes.
 I could just drop all of the feeds for shows I want to watch into one Bookmarks Toolbar folder, and easily scan through them to find new episodes.
