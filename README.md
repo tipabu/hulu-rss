@@ -34,3 +34,32 @@ To override this, add a `format` parameter to the url: `http://localhost:8080/?s
 Any other text will be left as-is.
 
 FWIW, Hulu's format (when they were still generating feeds) was `{show} - s{season} | e{episode} - {title}`.
+
+Common Issues
+-------------
+### EACCES
+```
+events.js:72
+        throw er; // Unhandled 'error' event
+              ^
+Error: listen EACCES
+    at errnoException (net.js:901:11)
+    ...
+```
+
+Your user doesn't have permission to listen on the specified port.
+This often will happen on Mac or Linux systems if you specify a port below 1024.
+To get around this, either run as root (not recommended) or use a different port.
+
+### EADDRINUSE
+```
+events.js:72
+        throw er; // Unhandled 'error' event
+              ^
+Error: listen EADDRINUSE
+    at errnoException (net.js:901:11)
+    ...
+```
+
+Some other program is already using the specified port.
+Pick a different port number.
