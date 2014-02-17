@@ -22,15 +22,16 @@ var prefix = function (str) {
 }
 var cdataWrapper = wrap("<![CDATA[", "]]>");
 
-function titleReplacer(str, item) {
-	return str.replace(/{([a-z]*)}/g, function(match, arg) { switch (arg) {
+function titleReplacer(str, item, fmt) {
+	if (!fmt) fmt = function(x){ return x == null ? '' : x; };
+	return fmt(str.replace(/{([a-z]*)}/g, function(match, arg) { switch (arg) {
 		case "title":    return tryGet(item, 'title');
 		case "episode":  return tryGet(item, 'episode_number');
 		case "season":   return tryGet(item, 'season_number');
 		case "show":     return tryGet(item, ['show', 'name']);
 		case "duration": return tryGet(item, 'duration', function(x) { x = Math.round(x); return Math.floor(x / 60) + ':' + ('00' + x % 60).substr(-2); });
 		default:         return match; // if we don't recognize the name, leave it be
-	} });
+	} }));
 }
 
 var badReq = function(response, msg) {
