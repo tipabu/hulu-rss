@@ -40,22 +40,17 @@ var badReq = function(response, msg) {
 		+ "<body><h1>Bad Request</h1>"
 		+ "<p>" + msg + "</p></body></html>");
 };
-var errHandler = function(response, reqUrl) {
+var errHandler = function(response, reqUrl, page) {
 	return function(e) {
 		response.writeHead(502, "Bad Gateway");
 		response.end("<!DOCTYPE html><html>"
 			+ "<head><title>Bad Gateway</title></head>"
 			+ "<body><h1>Bad Gateway</h1>"
-			+ "<p>Received error while getting " + reqUrl.replace(/&/g, '&amp;') + ":<br/><pre>" + e + "</pre></p></body></html>");
+				+ "<p>Error while getting " + reqUrl.replace(/&/g, '&amp;') + ": " + e.message + "</p>"
+				+ (page ? "<p>Received response:</p>"
+					+ "<pre>" + page.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;") + "</pre>" : "")
+			+ "</body></html>");
 	};
-};
-var errWithResponse = function(response, msg, page) {
-	response.writeHead(502, "Bad Gateway");
-	response.end("<!DOCTYPE html><html>"
-		+ "<head><title>Bad Gateway</title></head>"
-		+ "<body><h1>Bad Gateway</h1>"
-		+ "<p>" + msg + "</p>"
-		+ "<p>Received response:<br/><pre>" + page.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;") + "</pre></p></body></html>");
 };
 var writeRSS = function(response, episodes, titleFormat) {
 	response.writeHead(200, "OK", {"content-type": "application/xml+rss"});
@@ -86,7 +81,7 @@ function doGet(options, onSuccess, onError) {
 		res.on('data', function(chunk) {
 			data += chunk;
 		}).on('end', function() {
-			onSuccess(data);
+			onSuccess(data, url.format(options));
 		}).on('error', onError);
 	}).on('error', onError);
 }
@@ -111,14 +106,14 @@ http.createServer(function(request, response) {
 			"user-agent": request.headers["user-agent"]
 		}
 	};
-	doGet(options, function(page) {
+	doGet(options, function(page, reqUrl) {
 		var token = tryGet(page.match(/API_DONUT = (['"])([^'"]*)\1/), 2);
 		var show = tryGet(page.match(/(['"])id\1:\s*(\d+),/), 2);
 		if (!token) {
-			errWithResponse(response, "Couldn't find token.", page);
+			errHandler(response, reqUrl, page)(new Error("Couldn't find token."));
 			return;
 		} else if (!show) {
-			errWithResponse(response, "Couldn't find show ID.", page);
+			errHandler(response, reqUrl, page)(new Error("Couldn't find show ID."));
 			return;
 		}
 		// This is likely brittle; we might be better off trying to parse the URL to follow from page, like we do for token and show.
