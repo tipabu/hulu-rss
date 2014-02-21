@@ -53,12 +53,12 @@ var errHandler = function(response, reqUrl, page) {
 			+ "</body></html>");
 	};
 };
-var writeRSS = function(response, episodes, titleFormat) {
+var writeRSS = function(response, show, episodes, titleFormat) {
 	response.writeHead(200, "OK", {"content-type": "application/xml+rss"});
 	response.end("<rss version=\"2.0\"><channel>"
-		+ "<title>" + tryGet(episodes, [0, 'video', 'show', 'name'], cdataWrapper) + "</title>"
-		+ "<link>" + tryGet(episodes, [0, 'video', 'show', 'canonical_name'], prefix(URL_PREFIX)) + "</link>"
-		+ "<description>" + tryGet(episodes, [0, 'video', 'show', 'link_description'], cdataWrapper) + "</description>"
+		+ "<title>" + tryGet(show, 'name', cdataWrapper) + "</title>"
+		+ "<link>" + tryGet(show, 'canonical_name', prefix(URL_PREFIX)) + "</link>"
+		+ "<description>" + tryGet(show, 'description', cdataWrapper) + "</description>"
 		+ episodes.sort(function(a,b){
 			return a.video.released_at < b.video.released_at ? 1 : -1;
 		}).map(function(item) {
@@ -94,57 +94,77 @@ http.createServer(function(request, response) {
 	var titleFormat = tryGet(search, 'format');
 	if (!titleFormat) titleFormat = "{title}";
 
-	var urlToFetch = tryGet(search, 'show');
-	if (!urlToFetch) {
+	var showName = tryGet(search, 'show');
+	if (!showName) {
 		badReq(response, "You must include a <code>show</code> parameter in your query string.");
 		return;
 	}
 	var options = {
 		"protocol": "http:",
 		"hostname": REMOTE_HOST,
-		"pathname": '/' + urlToFetch,
+		"pathname": '/' + showName,
 		"headers": {
-			"user-agent": request.headers["user-agent"]
-		}
+			"user-agent": request.headers["user-agent"]}
 	};
 	doGet(options, function(page, reqUrl) {
 		var token = tryGet(page.match(/API_DONUT = (['"])([^'"]*)\1/), 2);
-		var show = tryGet(page.match(/(['"])id\1:\s*(\d+),/), 2);
 		if (!token) {
 			errHandler(response, reqUrl, page)(new Error("Couldn't find token."));
-			return;
-		} else if (!show) {
-			errHandler(response, reqUrl, page)(new Error("Couldn't find show ID."));
 			return;
 		}
 		// This is likely brittle; we might be better off trying to parse the URL to follow from page, like we do for token and show.
 		var options = {
 			"protocol": "http:",
 			"hostname": REMOTE_HOST,
-			"pathname": "/mozart/v1.h2o/shows/" + show + "/episodes",
+			"pathname": "/mozart/v1.h2o/canonical/" + showName,
 			"query": {
-				free_only: 0,
-				include_nonbrowseable: 1,
-				show_id: show,
-				sort: 'seasons_and_release',
-				video_type: 'episode',
-				items_per_page: 32,
-				position: 0,
 				region: 'us',
 				locale: 'en',
 				language: 'en',
+				include_pages: 1,
 				access_token: token},
 			"headers": {
-				"user-agent": request.headers["user-agent"]
-			}
+				"user-agent": request.headers["user-agent"]}
 		};
-		doGet(options, function(ep_data) {
-			var episodes = JSON.parse(ep_data).data;
-			if (!episodes) {
-				errHandler(response, url.format(options))(new Error("No JSON data."));
+		doGet(options, function(show_data, reqUrl) {
+			var show = tryGet(JSON.parse(show_data), ["data", 0, "show"]);
+			if (!show) {
+				errHandler(response, reqUrl, show_data)(new Error("Bad JSON data."));
 				return;
 			}
-			writeRSS(response, episodes, titleFormat);
+			var show_id = tryGet(show, "id");
+			if (!show_id) {
+				errHandler(response, reqUrl, show_data)(new Error("Couldn't find show ID."));
+				return;
+			}
+			// Also likely brittle
+			var options = {
+				"protocol": "http:",
+				"hostname": REMOTE_HOST,
+				"pathname": "/mozart/v1.h2o/shows/" + show_id + "/episodes",
+				"query": {
+					free_only: 0,
+					include_nonbrowseable: 1,
+					show_id: show_id,
+					sort: 'seasons_and_release',
+					video_type: 'episode',
+					items_per_page: 32,
+					position: 0,
+					region: 'us',
+					locale: 'en',
+					language: 'en',
+					access_token: token},
+				"headers": {
+					"user-agent": request.headers["user-agent"]}
+			};
+			doGet(options, function(ep_data) {
+				var episodes = tryGet(JSON.parse(ep_data), 'data');
+				if (!episodes || episodes.length == 0) {
+					errHandler(response, url.format(options), ep_data)(new Error("Bad JSON data."));
+					return;
+				}
+				writeRSS(response, show, episodes, titleFormat);
+			}, errHandler(response, url.format(options)));
 		}, errHandler(response, url.format(options)));
 	}, errHandler(response, url.format(options)));
 }).listen(process.argv[2] || DEFAULT_PORT);
