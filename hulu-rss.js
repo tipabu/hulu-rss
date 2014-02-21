@@ -81,16 +81,29 @@ var writeRSS = function(response, show, episodes, titleFormat) {
 		+ "</channel></rss>");
 };
 
-function doGet(options, onSuccess, onError) {
+function doGet(options, onSuccess, onError, redirects, maxRedirects) {
 	options.path = options.path || options.pathname + (options.query ? "?" + querystring.stringify(options.query) : '');
-	http.get(options, function(res) {
-		var data = '';
-		res.on('data', function(chunk) {
-			data += chunk;
-		}).on('end', function() {
-			onSuccess(data, url.format(options));
+	redirects = redirects || 0;
+	maxRedirects = maxRedirects || 5;
+	if (redirects > maxRedirects) {
+		onError(new Error("Too many redirects."));
+	} else {
+		http.get(options, function(res) {
+			if (Math.floor(res.statusCode/100) == 3 && "location" in res.headers) {
+				res.on('data', function(chunk) { });
+				var opts = url.parse(res.headers.location);
+				opts.headers = options.headers;
+				doGet(opts, onSuccess, onError, redirects + 1);
+			} else {
+				var data = '';
+				res.on('data', function(chunk) {
+					data += chunk;
+				}).on('end', function() {
+					onSuccess(data, url.format(options));
+				}).on('error', onError);
+			}
 		}).on('error', onError);
-	}).on('error', onError);
+	}
 }
 
 http.createServer(function(request, response) {
