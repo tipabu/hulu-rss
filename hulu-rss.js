@@ -58,6 +58,12 @@ var writeRSS = function(response, show, episodes, titleFormat) {
 	response.end("<rss version=\"2.0\"><channel>"
 		+ "<title>" + tryGet(show, 'name', cdataWrapper) + "</title>"
 		+ "<link>" + tryGet(show, 'canonical_name', prefix(URL_PREFIX)) + "</link>"
+		+ tryGet(show, 'genres').split('~').map(cdataWrapper).map(wrap('<category>', '</category>')).join('')
+		+ "<image>"
+			+ "<url>" + tryGet(show, 'thumbnail_url', cdataWrapper) + "</url>"
+			+ "<title>" + tryGet(show, 'name', cdataWrapper) + "</title>"
+			+ "<link>" + tryGet(show, 'canonical_name', prefix(URL_PREFIX)) + "</link>"
+		+ "</image>"
 		+ "<description>" + tryGet(show, 'description', cdataWrapper) + "</description>"
 		+ episodes.sort(function(a,b){
 			return a.video.released_at < b.video.released_at ? 1 : -1;
