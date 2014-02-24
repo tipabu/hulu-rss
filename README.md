@@ -18,8 +18,10 @@ By default, the server starts on port 8080; you can change this by adding the de
 To get the RSS feed for a show, simply got to `http://localhost:8080/?show=show-name`, replacing `show-name` with the canonical name taken from the show's main Hulu page.
 For example, the URL for Family Guy (Hulu's most popular show) is `http://www.hulu.com/family-guy`, so the feed would be at `http://localhost:8080/?show=family-guy`.
 
-Title Formatting
-----------------
+Feed Options
+------------
+
+### Title Formatting ###
 
 I added the ability to format episode titles as you like.
 By default, just the episode title is displayed.
@@ -35,6 +37,12 @@ To override this, add a `format` parameter to the url: `http://localhost:8080/?s
 Any other text will be left as-is.
 
 FWIW, Hulu's format (when they were still generating feeds) was `{show} - s{season} | e{episode} - {title}`.
+
+### Only Show Free Episodes ###
+
+There was also an option in Hulu's API to only return free episodes.
+To enable this filter, include a `free_only` parameter in the url.
+The value doesn't matter; only the existence of the parameter.
 
 Common Issues
 -------------

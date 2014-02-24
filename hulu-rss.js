@@ -113,6 +113,8 @@ http.createServer(function(request, response) {
 	var titleFormat = tryGet(search, 'format');
 	if (!titleFormat) titleFormat = "{title}";
 
+	var freeOnly = tryGet(search, 'free_only', function(x) { return x == null ? 0 : 1 });
+
 	var showName = tryGet(search, 'show');
 	if (!showName) {
 		badReq(response, "You must include a <code>show</code> parameter in your query string.");
@@ -162,7 +164,7 @@ http.createServer(function(request, response) {
 				"hostname": REMOTE_HOST,
 				"pathname": "/mozart/v1.h2o/shows/" + show_id + "/episodes",
 				"query": {
-					free_only: 0,
+					free_only: freeOnly,
 					include_nonbrowseable: 1,
 					show_id: show_id,
 					sort: 'seasons_and_release',
