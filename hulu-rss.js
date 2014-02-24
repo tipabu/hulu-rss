@@ -153,6 +153,7 @@ http.createServer(function(request, response) {
 				errHandler(response, reqUrl, show_data)(new Error("Bad JSON data."));
 				return;
 			}
+			var episodes_count = tryGet(show, "episodes_count");
 			var show_id = tryGet(show, "id");
 			if (!show_id) {
 				errHandler(response, reqUrl, show_data)(new Error("Couldn't find show ID."));
@@ -169,7 +170,7 @@ http.createServer(function(request, response) {
 					show_id: show_id,
 					sort: 'seasons_and_release',
 					video_type: 'episode',
-					items_per_page: 32,
+					items_per_page: episodes_count,
 					position: 0,
 					region: 'us',
 					locale: 'en',
