@@ -38,6 +38,12 @@ Any other text will be left as-is.
 
 FWIW, Hulu's format (when they were still generating feeds) was `{show} - s{season} | e{episode} - {title}`.
 
+### Episode Limit ###
+
+You can specify a limit on how many episodes to return.
+To enable this filter, include a `limit` parameter in the url.
+By default, the limit is 10.
+
 ### Only Show Free Episodes ###
 
 There was also an option in Hulu's API to only return free episodes.

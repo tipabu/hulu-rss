@@ -65,9 +65,7 @@ var writeRSS = function(response, show, episodes, titleFormat) {
 			+ "<link>" + tryGet(show, 'canonical_name', prefix(URL_PREFIX)) + "</link>"
 		+ "</image>"
 		+ "<description>" + tryGet(show, 'description', cdataWrapper) + "</description>"
-		+ episodes.sort(function(a,b){
-			return a.video.released_at < b.video.released_at ? 1 : -1;
-		}).map(function(item) {
+		+ episodes.map(function(item) {
 			item = item.video;
 			if (!item) return '';
 			return "<item>"
@@ -114,6 +112,9 @@ http.createServer(function(request, response) {
 	if (!titleFormat) titleFormat = "{title}";
 
 	var freeOnly = tryGet(search, 'free_only', function(x) { return x == null ? 0 : 1 });
+
+	var limit = parseInt(tryGet(search, 'limit'));
+	if (!limit || limit < 0) limit = 10;
 
 	var showName = tryGet(search, 'show');
 	if (!showName) {
@@ -185,6 +186,11 @@ http.createServer(function(request, response) {
 					errHandler(response, url.format(options), ep_data)(new Error("Bad JSON data."));
 					return;
 				}
+				episodes = episodes.sort(function(a,b){
+					return a.video.released_at < b.video.released_at ? 1 : -1;
+				}).filter(function(x, i) {
+					return i < limit;
+				});
 				writeRSS(response, show, episodes, titleFormat);
 			}, errHandler(response, url.format(options)));
 		}, errHandler(response, url.format(options)));
