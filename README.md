@@ -15,7 +15,7 @@ Usage
 Once you've got [Node](http://nodejs.org/) installed, just run `node hulu-rss.js` to start the server.
 By default, the server starts on port 8080; you can change this by adding the desired port as an argument on the commandline.
 
-To get the RSS feed for a show, simply got to `http://localhost:8080/?show=show-name`, replacing `show-name` with the canonical name taken from the show's main Hulu page.
+To get the RSS feed for a show, simply go to `http://localhost:8080/?show=show-name`, replacing `show-name` with the canonical name taken from the show's main Hulu page.
 For example, the URL for Family Guy (Hulu's most popular show) is `http://www.hulu.com/family-guy`, so the feed would be at `http://localhost:8080/?show=family-guy`.
 
 Feed Options
