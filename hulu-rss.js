@@ -182,9 +182,8 @@ http.createServer(function(request, response) {
 			};
 			doGet(options, function(ep_data) {
 				var episodes = tryGet(JSON.parse(ep_data), 'data');
-				if (!episodes || episodes.length == 0) {
-					errHandler(response, url.format(options), ep_data)(new Error("Bad JSON data."));
-					return;
+				if (!episodes) {
+					episodes = [];
 				}
 				episodes = episodes.sort(function(a,b){
 					return a.video.released_at < b.video.released_at ? 1 : -1;
