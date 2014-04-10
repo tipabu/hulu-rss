@@ -6,80 +6,118 @@ var DEFAULT_PORT = 8080;
 var REMOTE_HOST = "www.hulu.com";
 var URL_PREFIX = "http:/" + "/" + REMOTE_HOST + "/";
 
-function tryGet(obj, keys, fmt) {
-	if (!fmt) fmt = function(x){ return x == null ? '' : x; };
-	if (typeof keys === "object" && 'length' in keys) {
-		return fmt(Array.prototype.reduce.call(keys, function(obj, key) { return obj && key in obj ? obj[key] : null; }, obj));
-	} else {
-		return fmt(obj && keys in obj ? obj[keys] : null);
-	}
-}
-function wrap(before, after) {
-	return function(x){ return x == null ? '' : before + x + after; };
-}
-var prefix = function (str) {
-	return wrap(str, '');
-}
-var cdataWrapper = wrap("<![CDATA[", "]]>");
+String.prototype.toXML = function toXML() {
+	return this
+	.replace(/&/g, "&amp;")
+	.replace(/"/g, "&quot;")
+	.replace(/>/g, "&gt;")
+	.replace(/</g, "&lt;");
+};
 
-function titleReplacer(str, item, fmt) {
-	if (!fmt) fmt = function(x){ return x == null ? '' : x; };
-	return fmt(str.replace(/{([a-z]*)}/g, function(match, arg) { switch (arg) {
+var defaultFormatter = function(x){ return x == null ? '' : x; };
+
+var tryGet = function tryGet(obj, keys, fmts) {
+	var val;
+
+	if (typeof keys === "object" && 'length' in keys) {
+		val = Array.prototype.reduce.call(keys, function(obj, key) {
+			return obj && key in obj ? obj[key] : null;
+		}, obj);
+	} else {
+		val = obj && keys in obj ? obj[keys] : null;
+	}
+
+	if (typeof fmts === "object" && 'length' in fmts) {
+		return Array.prototype.reduce.call(fmts, function(v, fmt) { return fmt(v); }, val);
+	} else if (fmts) {
+		return fmts(val);
+	} else {
+		return defaultFormatter(val);
+	}
+};
+var wrap = function wrap(before, after) { return function(x) {
+	return x == null ? x : before + x + after;
+}; };
+var prefix = function prefix(str) { return wrap(str, ''); };
+var tag = function tag(tagName) {
+	return wrap('<' + tagName + '>', '</' + tagName + '>');
+};
+var cdataWrapper = function(str) {
+	return wrap("<![CDATA[", "]]>")(str == null ? '' : str.replace(/\]\]>/g, ']]]><![CDATA[]>'));
+};
+
+var titleReplacer = function titleReplacer(str, item, fmts) {
+	var val = str.replace(/{([a-z]*)}/g, function(match, arg) { switch (arg) {
 		case "title":    return tryGet(item, 'title');
 		case "episode":  return tryGet(item, 'episode_number');
 		case "season":   return tryGet(item, 'season_number');
 		case "show":     return tryGet(item, ['show', 'name']);
-		case "duration": return tryGet(item, 'duration', function(x) { x = Math.round(x); return Math.floor(x / 60) + ':' + ('00' + x % 60).substr(-2); });
+		case "duration": return tryGet(item, 'duration', function(x) {
+			x = Math.round(x); return Math.floor(x / 60) + ':' + ('00' + x % 60).substr(-2);
+		});
 		default:         return match; // if we don't recognize the name, leave it be
-	} }));
-}
+	} });
+
+	if (typeof fmts === "object" && 'length' in fmts) {
+		return Array.prototype.reduce.call(fmts, function(v, fmt) { return fmt(v); }, val);
+	} else if (fmts) {
+		return fmts(val);
+	} else {
+		return defaultFormatter(val);
+	}
+};
 
 var badReq = function(response, msg) {
-	response.writeHead(400, "Bad Request");
-	response.end("<!DOCTYPE html><html>"
-		+ "<head><title>Bad Request</title></head>"
-		+ "<body><h1>Bad Request</h1>"
-		+ "<p>" + msg + "</p></body></html>");
+	var title = "Bad Request";
+	response.writeHead(400, title);
+	response.end("<!DOCTYPE html>" + tag('html')(
+		tag('head')(tag('title')(title))
+		+ tag('body')(
+			tag('h1')(title)
+			+ tag('p')(msg)
+		)
+	));
 };
 var errHandler = function(response, reqUrl, page) {
 	return function(e) {
-		response.writeHead(502, "Bad Gateway");
-		response.end("<!DOCTYPE html><html>"
-			+ "<head><title>Bad Gateway</title></head>"
-			+ "<body><h1>Bad Gateway</h1>"
-				+ "<p>Error while getting " + reqUrl.replace(/&/g, '&amp;') + ": " + e.message + "</p>"
-				+ (page ? "<p>Received response:</p>"
-					+ "<pre>" + page.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;") + "</pre>" : "")
-			+ "</body></html>");
+		var title = "Bad Gateway";
+		response.writeHead(502, title);
+		response.end("<!DOCTYPE html>" + tag('html')(
+			tag('head')(tag('title')(title))
+			+ tag('body')(
+				tag('h1')(title)
+				+ tag('p')("Error while getting " + reqUrl.toXML() + ": " + e.message.toXML())
+				+ (page ? tag('p')("Received response:")
+					+ tag('pre')(page.toXML()) : "")
+			)
+		));
 	};
 };
 var writeRSS = function(response, show, episodes, titleFormat) {
 	response.writeHead(200, "OK", {"content-type": "application/xml+rss"});
-	response.end("<rss version=\"2.0\"><channel>"
-		+ "<title>" + tryGet(show, 'name', cdataWrapper) + "</title>"
-		+ "<link>" + tryGet(show, 'canonical_name', prefix(URL_PREFIX)) + "</link>"
-		+ tryGet(show, 'genres').split('~').map(cdataWrapper).map(wrap('<category>', '</category>')).join('')
-		+ "<image>"
-			+ "<url>" + tryGet(show, 'thumbnail_url', cdataWrapper) + "</url>"
-			+ "<title>" + tryGet(show, 'name', cdataWrapper) + "</title>"
-			+ "<link>" + tryGet(show, 'canonical_name', prefix(URL_PREFIX)) + "</link>"
-		+ "</image>"
-		+ "<description>" + tryGet(show, 'description', cdataWrapper) + "</description>"
+	response.end("<rss version=\"2.0\">" + tag('channel')(
+		tryGet(show, 'name', [cdataWrapper, tag('title')])
+		+ tryGet(show, 'canonical_name', [prefix(URL_PREFIX), tag('link')])
+		+ tryGet(show, 'genres').split('~').map(cdataWrapper).map(tag('category')).join('')
+		+ tag('image')(
+			tryGet(show, 'thumbnail_url', [cdataWrapper, tag('url')])
+			+ tryGet(show, 'name', [cdataWrapper, tag('title')])
+			+ tryGet(show, 'canonical_name', [prefix(URL_PREFIX), tag('link')])
+		) + tryGet(show, 'description', [cdataWrapper, tag('description')])
 		+ episodes.map(function(item) {
 			item = item.video;
 			if (!item) return '';
-			return "<item>"
-				+ "<guid>" + tryGet(item, 'id', prefix(URL_PREFIX + "watch/")) + "</guid>"
-				+ "<link>" + tryGet(item, 'id', prefix(URL_PREFIX + "watch/")) + "</link>"
-				+ "<pubDate>" + tryGet(item, 'released_at', cdataWrapper) + "</pubDate>"
-				+ "<title>" + titleReplacer(titleFormat, item, cdataWrapper)  + "</title>"
-				+ "<description>" + tryGet(item, 'description', cdataWrapper) + "</description>"
-				+ "</item>";
+			return tag("item")(
+				tryGet(item, 'id', [prefix(URL_PREFIX + "watch/"), tag('guid')])
+				+ tryGet(item, 'id', [prefix(URL_PREFIX + "watch/"), tag('link')])
+				+ tryGet(item, 'released_at', [cdataWrapper, tag('pubDate')])
+				+ titleReplacer(titleFormat, item, [cdataWrapper, tag('title')])
+				+ tryGet(item, 'description', [cdataWrapper, tag('description')]));
 		}).join('')
-		+ "</channel></rss>");
+	) + "</rss>");
 };
 
-function doGet(options, onSuccess, onError, redirects, maxRedirects) {
+var doGet = function doGet(options, onSuccess, onError, redirects, maxRedirects) {
 	options.path = options.path || options.pathname + (options.query ? "?" + querystring.stringify(options.query) : '');
 	redirects = redirects || 0;
 	maxRedirects = maxRedirects || 5;
@@ -87,11 +125,11 @@ function doGet(options, onSuccess, onError, redirects, maxRedirects) {
 		onError(new Error("Too many redirects."));
 	} else {
 		http.get(options, function(res) {
-			if (Math.floor(res.statusCode/100) == 3 && "location" in res.headers) {
+			if (res.statusCode >= 300 && res.statusCode <= 399 && "location" in res.headers) {
 				res.on('data', function(chunk) { });
 				var opts = url.parse(res.headers.location);
 				opts.headers = options.headers;
-				doGet(opts, onSuccess, onError, redirects + 1);
+				doGet(opts, onSuccess, onError, redirects + 1, maxRedirects);
 			} else {
 				var data = '';
 				res.on('data', function(chunk) {
@@ -102,7 +140,7 @@ function doGet(options, onSuccess, onError, redirects, maxRedirects) {
 			}
 		}).on('error', onError);
 	}
-}
+};
 
 http.createServer(function(request, response) {
 	var search = url.parse(request.url).search;
