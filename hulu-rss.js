@@ -224,7 +224,9 @@ http.createServer(function(request, response) {
 					episodes = [];
 				}
 				episodes = episodes.sort(function(a,b){
-					return a.video.released_at < b.video.released_at ? 1 : -1;
+					return a.video.released_at < b.video.released_at ? 1 :
+						a.video.released_at > b.video.released_at ? -1 :
+						a.video.episode_number < b.video.episode_number ? 1 : -1;
 				}).filter(function(x, i) {
 					return i < limit;
 				});
